@@ -155,15 +155,15 @@ set( QT_USE_QTNETWORK 1 )
 include( ${QT_USE_FILE} )
 
 if ( NOT Qt4_FOUND )
-    # Find Qt5
-    find_package( Qt5Core QUIET )
-    find_package( Qt5Widgets QUIET )
-    find_package( Qt5OpenGL QUIET )
-    find_package( Qt5Sql QUIET )
-    find_package( Qt5WebEngine QUIET )
-    find_package( Qt5WebEngineWidgets QUIET )
-    find_package( Qt5Xml QUIET )
-    find_package( Qt5Network QUIET )
+	# Find Qt5
+	find_package( Qt5Core QUIET )
+	find_package( Qt5Widgets QUIET )
+	find_package( Qt5OpenGL QUIET )
+	find_package( Qt5Sql QUIET )
+	find_package( Qt5WebEngine QUIET )
+	find_package( Qt5WebEngineWidgets QUIET )
+	find_package( Qt5Xml QUIET )
+	find_package( Qt5Network QUIET )
 endif()
 
 if ( Qt5Core_FOUND )
@@ -375,6 +375,28 @@ elseif()
 	message( STATUS "3DMouse NOT FOUND" )
 endif()
 
+# ------------------------------ CUDA -------------------------------
+# Find Cuda
+find_package(CUDA)
+if( CUDA_FOUND )
+
+	list( APPEND ALL_COMPILE_DEFINITIONS -DCUDA_FOUND )
+
+	list( APPEND ALL_SYSTEM_HEADERS	${CUDA_INCLUDE_DIRS} )
+
+	list( APPEND ALL_COMPILE_DEFINITIONS -DHAVE_CUDA )
+
+	message( STATUS "CUDA Found:" )
+	message( STATUS "CUDA_INCLUDE_DIRS=${CUDA_INCLUDE_DIRS}" )
+	message( STATUS "CUDA_LIB_DIR=${CUDA_LIBRARIES}" )
+
+	# set specific argument to nvcc compiler for paralel nsight debugging
+	#SET (CUDA_NVCC_USER_OPTIONS "-arch sm_20 -maxrregcount=60 --ptxas-options=-v" CACHE	STRING "Set additional user specific compiler options to Cuda nvcc")
+	#set( CUDA_NVCC_FLAGS -arch sm_20;-maxrregcount=60;--ptxas-options=-v )
+
+else()
+	message( STATUS "CUDA Not Found" )
+endif()
 
 # ------------------------------ DOXYGEN -------------------------------
 # Find Doxygen
@@ -509,6 +531,45 @@ if( USE_BUILTIN_DEPENDENCIES )
 			IMPORTED_IMPLIB ${DEP_BIN}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}osgModeling${CMAKE_STATIC_LIBRARY_SUFFIX} )
 	endif()
 
+	# Build osgCompute
+	if( CUDA_FOUND )
+		ExternalProject_Add( dep_osgCompute
+			PREFIX osgCompute
+			SOURCE_DIR ${DEP_SOURCE}/osgCompute
+			BINARY_DIR osgCompute
+			CMAKE_ARGS
+				-DCMAKE_INSTALL_PREFIX:PATH=${DEP_BIN}
+				#-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}	# WTF BUG - this is not working... needs to fix osgCompute
+				-DCMAKE_BUILD_TYPE:STRING=Release				# works only with Release, because OSG is Release built (on OSX) !!!
+				-DDYNAMIC_LINKING=ON
+				-DBUILD_EXAMPLES=ON
+				-C ${CMAKE_CURRENT_BINARY_DIR}/config.cmake
+			)
+
+		# osgCompute
+		add_library( osgCompute SHARED IMPORTED )
+		add_dependencies( osgCompute dep_osgCompute )
+		set_target_properties( osgCompute PROPERTIES
+			IMPORTED_LOCATION ${DEP_BIN}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}osgCompute${CMAKE_SHARED_LIBRARY_SUFFIX} )
+
+		if( WIN32 AND MSVC )
+			set_target_properties( osgCompute PROPERTIES
+				IMPORTED_LOCATION ${DEP_BIN}/bin/${CMAKE_SHARED_LIBRARY_PREFIX}osgCompute${CMAKE_SHARED_LIBRARY_SUFFIX}
+				IMPORTED_IMPLIB ${DEP_BIN}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}osgCompute${CMAKE_STATIC_LIBRARY_SUFFIX} )
+		endif()
+
+		# osgCuda
+		add_library( osgCuda SHARED IMPORTED )
+		add_dependencies( osgCuda dep_osgCompute )
+		set_target_properties( osgCuda PROPERTIES
+			IMPORTED_LOCATION ${DEP_BIN}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}osgCuda${CMAKE_SHARED_LIBRARY_SUFFIX} )
+
+		if( WIN32 AND MSVC )
+			set_target_properties( osgCuda PROPERTIES
+				IMPORTED_LOCATION ${DEP_BIN}/bin/${CMAKE_SHARED_LIBRARY_PREFIX}osgCuda${CMAKE_SHARED_LIBRARY_SUFFIX}
+				IMPORTED_IMPLIB ${DEP_BIN}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}osgCuda${CMAKE_STATIC_LIBRARY_SUFFIX} )
+		endif()
+	endif() # CUDA_FOUND
 
 	# Build igloo
 	ExternalProject_Add( dep_igloo
@@ -798,7 +859,7 @@ if( USE_BUILTIN_DEPENDENCIES )
 		CMAKE_ARGS
 			-DCMAKE_INSTALL_PREFIX:PATH=${DEP_BIN}
 			-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-		)	
+		)
 
 	# Ensure correct order of build (dependencies between external dependencies)
 	if( MSVC OR APPLE )
@@ -889,6 +950,9 @@ file ( GLOB SRC_LEAP "src/Leap/*.cpp" )
 file ( GLOB_RECURSE SRC_LEAPLIB "src/Leap/LeapLib/*.cpp" )
 file ( GLOB_RECURSE SRC_HANDMODULE "src/Leap/HandModule/*.cpp" )
 
+# CUDA
+file ( GLOB SRC_CUDA "src/Gpu/*.cpp" )
+
 # MOUSE3D
 set ( SRC_MOUSE3D
 	src/Mouse3d/Connector.cpp
@@ -961,10 +1025,24 @@ endif()
 # add Leap
 if( LEAP_FOUND )
 	# WORKAROUND GARAJ comment
-        list( APPEND SRC ${SRC_LEAP} )
-        list( APPEND SRC ${SRC_HANDMODULE} )
+		list( APPEND SRC ${SRC_LEAP} )
+		list( APPEND SRC ${SRC_HANDMODULE} )
 
 endif()
+
+# add CUDA
+if( CUDA_FOUND )
+	list( APPEND SRC ${SRC_CUDA} )
+
+	# collect cuda kernel sources
+	SET(MY_CUDA_SOURCE_FILES src/Gpu/LayoutKernel.cu )
+
+	# Use the WRAP_CUDA macro.
+	#WRAP_CUDA( CUDA_FILES ${MY_CUDA_SOURCE_FILES} )
+	#CUDA_WRAP_SRCS( ${target_name} PTX generated_files ${MY_CUDA_SOURCE_FILES} ${cmake_options} OPTIONS ${options} )
+
+endif()
+
 
 # add MOUSE3D if found
 if( MOUSE3D_FOUND )
@@ -1025,6 +1103,9 @@ file( GLOB_RECURSE HEADER_SPEECH	"include/Speech/*.h" )
 file( GLOB HEADER_LEAP	"include/Leap/*.h" )
 file( GLOB_RECURSE HEADER_LEAPLIB	"include/Leap/LeapLib/*.h" )
 file( GLOB_RECURSE HEADER_HANDMODULE	"include/Leap/HandModule/*.h" )
+
+# CUDA
+file( GLOB HEADER_CUDA	"include/Gpu/*.h" )
 
 # MOUSE3D
 set ( HEADER_MOUSE3D
@@ -1098,8 +1179,13 @@ endif()
 
 # LEAP
 if( LEAP_FOUND )
-        list( APPEND INCL ${HEADER_LEAP} )
-        list( APPEND INCL ${HEADER_HANDMODULE} )
+		list( APPEND INCL ${HEADER_LEAP} )
+		list( APPEND INCL ${HEADER_HANDMODULE} )
+endif()
+
+# CUDA
+if( CUDA_FOUND )
+	list( APPEND INCL ${HEADER_CUDA} )
 endif()
 
 # MOUSE3D
@@ -1184,6 +1270,13 @@ if( LEAP_FOUND )
 	source_group( \\headers\\Leap "^.*Leap/.*h$" )
 endif()
 
+# CUDA
+if( CUDA_FOUND )
+	source_group( \\src\\Gpu "^.*Gpu/.*$" )
+	source_group( \\headers\\Gpu "^.*Gpu/.*h$" )
+endif()
+
+
 # MOUSE3D
 if( MOUSE3D_FOUND )
 	source_group( \\src\\Mouse3d "^.*Mouse3d/.*$" )
@@ -1241,7 +1334,7 @@ endif()
 
 #-------------------------------- leap module -------------------------------
 if( LEAP_FOUND )
-        add_library( leaplib STATIC ${SRC_LEAPLIB} ${HEADER_LEAPLIB})
+		add_library( leaplib STATIC ${SRC_LEAPLIB} ${HEADER_LEAPLIB})
 
 	target_include_directories( leaplib
 		SYSTEM PUBLIC
@@ -1265,6 +1358,11 @@ if( LEAP_FOUND )
 		set_target_properties( leaplib PROPERTIES COTIRE_UNITY_LINK_LIBRARIES_INIT "COPY_UNITY" )
 		cotire( leaplib CONFIGURATIONS Debug Release )
 	endif()
+endif()
+
+#-------------------------------- CUDA kernels -------------------------------
+if( CUDA_FOUND )
+	CUDA_ADD_LIBRARY( cuda_library ${MY_CUDA_SOURCE_FILES} STATIC )
 endif()
 
 # ---------------------------------------------------------------
@@ -1375,6 +1473,11 @@ if( LEAP_FOUND )
 	target_link_libraries( ${3DSOFTVIZ_NAME} leaplib ${LEAP_LIBRARIES} )
 endif()
 
+if( CUDA_FOUND )
+	target_link_libraries( ${3DSOFTVIZ_NAME} cuda_library osgCuda osgCompute ${CUDA_LIBRARIES} )
+endif()
+
+
 if( MOUSE3D_FOUND )
 	if ( WIN32 )
 		target_link_libraries( ${3DSOFTVIZ_NAME} ${MOUSE3D_LIBRARIES} )
@@ -1396,6 +1499,10 @@ if( COMMAND cotire )
 		target_link_libraries( ${3DSOFTVIZ_NAME}_unity leaplib_unity ${LEAP_LIBRARIES} )
 	endif()
 
+	if( CUDA_FOUND )
+		target_link_libraries( ${3DSOFTVIZ_NAME}_unity cuda_library osgCuda osgCompute ${CUDA_LIBRARIES} )
+	endif()
+
 	if( MOUSE3D_FOUND )
 		if ( WIN32 )
 			target_link_libraries( ${3DSOFTVIZ_NAME}_unity ${MOUSE3D_LIBRARIES} )
@@ -1411,7 +1518,7 @@ endif()
 add_dependencies( ${3DSOFTVIZ_NAME} noiseutils qtcolorpicker)
 # dependencies of unity build
 if (COMMAND cotire)
-	add_dependencies( ${3DSOFTVIZ_NAME} noiseutils qtcolorpicker)
+	add_dependencies( ${3DSOFTVIZ_NAME}_unity noiseutils qtcolorpicker)
 endif()
 
 if( USE_BUILTIN_DEPENDENCIES )
@@ -1433,6 +1540,10 @@ if( USE_BUILTIN_DEPENDENCIES )
 		add_dependencies( ${3DSOFTVIZ_NAME} leaplib )
 	endif()
 
+	if( CUDA_FOUND )
+		add_dependencies( ${3DSOFTVIZ_NAME} osgCuda osgCompute )
+	endif()
+
 	# dependencies of unity build
 	if (COMMAND cotire)
 		add_dependencies( ${3DSOFTVIZ_NAME}_unity libnoise osgModeling gitlib_unity dep_luametrics dep_leg dep_lpeg dep_luafilesystem igloo dep_lualogging dep_StackTracePlus dep_luasocket dep_mobdebug dep_luacov dep_luacheck dep_lua_cliargs dep_luasystem dep_dkjson dep_say dep_luassert dep_lua-term dep_penlight dep_mediator_lua dep_busted )
@@ -1448,6 +1559,10 @@ if( USE_BUILTIN_DEPENDENCIES )
 		endif()
 		if( LEAP_FOUND )
 			add_dependencies( ${3DSOFTVIZ_NAME}_unity leaplib_unity )
+		endif()
+
+		if( CUDA_FOUND )
+			add_dependencies( ${3DSOFTVIZ_NAME}_unity osgCuda osgCompute )
 		endif()
 
 	endif()
