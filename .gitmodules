@@ -82,3 +82,6 @@
 [submodule "dependencies/busted"]
 	path = dependencies/busted
 	url = git@github.com:LuaDist/busted.git
+[submodule "dependencies/osgCompute"]
+	path = dependencies/osgCompute
+	url = git@github.com:kapecp/osgCompute.git
