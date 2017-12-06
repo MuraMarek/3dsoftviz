@@ -3,6 +3,7 @@
 #include "Data/Graph.h"
 #include "Data/Cluster.h"
 
+#include "Util/CameraHelper.h"
 #include "Util/ApplicationConfig.h"
 
 #include <osg/Geometry>

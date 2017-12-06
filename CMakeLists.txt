@@ -31,7 +31,28 @@ set( 3DSOFTVIZ_DOMAIN "${3DSOFTVIZ_DOMAIN_FIRST}.${3DSOFTVIZ_DOMAIN_SECOND}" )
 # Additional CMake scripts
 set( CMAKE_MODULE_PATH
 	"${CMAKE_CURRENT_SOURCE_DIR}/cmake"
+        "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/osgoculusviewer/cmake"
 	${CMAKE_MODULE_PATH} )
+
+
+# Oculus
+SET(OCULUS_SDK_ROOT_DIR "C:/Program Files (x86)/OculusSDK")
+FIND_PACKAGE( OculusSDK REQUIRED)
+
+#find_package(OpenSceneGraph REQUIRED
+#osgAnimation
+#osgDB
+#osgGA
+#osgText
+#osgUtil
+#osgViewer
+#osgShadow
+#osgParticle
+#)
+
+#include_directories(
+#${OPENSCENEGRAPH_INCLUDE_DIRS}
+#)
 
 # Enable C++11 features
 set(CMAKE_CXX_STANDARD 11)
@@ -60,7 +81,7 @@ if( USE_STRICT_COMPILE_WARNINGS )
 		# only for C: -Wold-style-definition -Wstrict-prototypes -Wmissing-prototypes
 	elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 		# using Visual Studio C++
-		set( FLAGS_FOR_DEBUG "/W3")
+                set( FLAGS_FOR_DEBUG "/W3" "/MTd")
 	endif()
 endif()
 
@@ -162,7 +183,7 @@ if ( NOT Qt5_FOUND )
 	set( QT_USE_QTOPENGL 1 )
 	set( QT_USE_QTSQL 1 )
 	set( QT_USE_QTWEBKIT 1 )
-	set( QT_USE_QTXML 1 )
+        set( QT_USE_QTXML 1 )
 	set( QT_USE_QTNETWORK 1 )
 	include( ${QT_USE_FILE} )
 endif()
@@ -543,6 +564,38 @@ if( USE_BUILTIN_DEPENDENCIES )
 			IMPORTED_LOCATION ${DEP_BIN}/bin/${CMAKE_SHARED_LIBRARY_PREFIX}osgModeling${CMAKE_SHARED_LIBRARY_SUFFIX}
 			IMPORTED_IMPLIB ${DEP_BIN}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}osgModeling${CMAKE_STATIC_LIBRARY_SUFFIX} )
 	endif()
+
+        # Build osgOculusViewer
+        ExternalProject_Add( dep_osgOculusViewer
+                PREFIX osgOculusViewer
+                SOURCE_DIR ${DEP_SOURCE}/osgoculusviewer
+                BINARY_DIR osgoculusviewer
+                CMAKE_ARGS
+                        -DCMAKE_INSTALL_PREFIX:PATH=${DEP_BIN}
+                        -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+                        -DBUILD_PLUGINS=ON
+                        -C ${CMAKE_CURRENT_BINARY_DIR}/config.cmake
+                )
+
+        add_library( osgOculusViewer SHARED IMPORTED )
+        add_dependencies( osgOculusViewer dep_osgOculusViewer )
+        set_target_properties( osgOculusViewer PROPERTIES
+                IMPORTED_LOCATION ${DEP_BIN}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}OsgOculus${CMAKE_SHARED_LIBRARY_SUFFIX} )
+
+        # OsgOculus' build system sets different library name posfixes based on build type
+        # TODO: RelWithDebInfo, MinSizeRel
+        # NOTE: we could use ExternalProject_Get_Property
+        if( CMAKE_BUILD_TYPE MATCHES "Debug" )
+                set( OsgOculus_POSTFIX "d" )
+        else()
+                set( OsgOculus_POSTFIX "" ) # release
+        endif()
+
+        if( WIN32 AND MSVC )
+            set_target_properties( osgOculusViewer PROPERTIES
+                    IMPORTED_LOCATION ${DEP_BIN}/bin/${CMAKE_SHARED_LIBRARY_PREFIX}OsgOculus${OsgOculus_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}
+                    IMPORTED_IMPLIB ${DEP_BIN}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}OsgOculus${OsgOculus_POSTFIX}${CMAKE_STATIC_LIBRARY_SUFFIX} )
+        endif()
 
 	# Build osgQt
 	if( BUILD_OSGQT )
@@ -1285,6 +1338,7 @@ endif()
 # noiseutils library
 add_library( noiseutils STATIC dependencies/noiseutils/noiseutils.cpp )
 target_include_directories( noiseutils SYSTEM PUBLIC ${DEPENDENCIES_INCLUDE_DIR}/libnoise dependencies/noiseutils dependencies/libnoise/src )
+target_compile_options( noiseutils PUBLIC /MTd )
 
 # mouse3d library
 if ( UNIX AND NOT APPLE )
@@ -1295,6 +1349,7 @@ endif()
 # qtcolorpicker library
 add_library( qtcolorpicker STATIC dependencies/qtcolorpicker/qtcolorpicker.cpp )
 target_include_directories( qtcolorpicker SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/qtcolorpicker )
+target_compile_options( qtcolorpicker PUBLIC /MTd )
 if (Qt4_FOUND )
 	target_link_libraries( qtcolorpicker Qt4::QtCore)
 endif()
@@ -1306,7 +1361,7 @@ endif()
 # include_directories( SYSTEM dependencies/parserlib/source )
 add_library( parserlib STATIC dependencies/parserlib/source/ast.cpp dependencies/parserlib/source/parser.cpp )
 target_include_directories( parserlib SYSTEM PUBLIC dependencies/parserlib/source  )
-
+target_compile_options( parserlib PUBLIC /MTd )
 
 # ---------------------------------------------------------------
 # Build modules as libraries
@@ -1400,7 +1455,7 @@ if( UNIX AND NOT APPLE )
 endif()
 
 # works:
-include_directories(SYSTEM ${ALL_SYSTEM_HEADERS})
+include_directories(SYSTEM ${ALL_SYSTEM_HEADERS} ${OCULUS_SDK_INCLUDE_DIRS})
 
 # does not work:
 #list(REMOVE_DUPLICATES ALL_SYSTEM_HEADERS)
@@ -1437,10 +1492,11 @@ target_link_libraries( ${3DSOFTVIZ_NAME}
 	noiseutils
 	libnoise
 	osgModeling
+        osgOculusViewer
 	qtcolorpicker
 	parserlib
-	${OPENSCENEGRAPH_LIBRARIES}
-	${OSGVIEWER_LIBRARIES}
+        ${OPENSCENEGRAPH_LIBRARIES}
+        ${OSGVIEWER_LIBRARIES}
 )
 
 if( UNIX AND NOT APPLE )

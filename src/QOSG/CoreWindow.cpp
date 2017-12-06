@@ -105,6 +105,7 @@ CoreWindow::CoreWindow( QWidget* parent, Vwr::CoreGraph* coreGraph, QApplication
 	client = new Network::Client( this );
 	new Network::Server( this );
 
+
 	//vytvorenie menu a toolbar-ov
 	createActions();
 	createMenus();
@@ -156,14 +157,13 @@ CoreWindow::CoreWindow( QWidget* parent, Vwr::CoreGraph* coreGraph, QApplication
 
 	// Duransky end - Inicializacia premennych
 
-	connect( lineEdit,SIGNAL( returnPressed() ),this,SLOT( sqlQuery() ) );
-
+    connect( lineEdit,SIGNAL( returnPressed() ),this,SLOT( sqlQuery() ) );
 
 	// connect checkbox for interchanging between rotation of camera or rotation of graph
 	QObject::connect( chb_camera_rot, SIGNAL( clicked( bool ) ),
-					  viewerWidget->getCameraManipulator(), SLOT( setCameraCanRot( bool ) ) );
+                      viewerWidget->getCameraManipulator(), SLOT( setCameraCanRot( bool ) ) );
 
-	Lua::LuaInterface::getInstance()->executeFile( "main.lua" );
+    // Lua::LuaInterface::getInstance()->executeFile( "main.lua" );
 	viewerWidget->getPickHandler()->setSelectionObserver( this );
 
 	QObject::connect( viewerWidget->getCameraManipulator(), SIGNAL( sendTranslatePosition( osg::Vec3d ) ),

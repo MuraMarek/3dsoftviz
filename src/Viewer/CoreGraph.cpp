@@ -57,6 +57,9 @@
 
 #include <osgDB/FileUtils>
 
+#include "oculusviewer.h"
+#include "oculusdevice.h"
+
 
 class PlaneConstraint : public osgManipulator::Constraint
 {
@@ -845,6 +848,13 @@ void CoreGraph::useSphereMappingDomeShader( osg::ref_ptr< osg::StateSet > state 
 
 Vwr::CoreGraph::CoreGraph( Data::Graph* graph, osg::ref_ptr<osg::Camera> camera )
 {
+    float nearClip = 0.01f;
+    float farClip = 10000.0f;
+    float pixelsPerDisplayPixel = 1.0;
+    float worldUnitsPerMetre = 1.0f;
+    int samples = 4;
+    osg::ref_ptr<OculusDevice> oculusDevice = new OculusDevice(nearClip, farClip, pixelsPerDisplayPixel, worldUnitsPerMetre, samples);
+
 	this->graph = graph;
 	this->camera = ( ( camera == 0 ) ? ( static_cast<osg::ref_ptr<osg::Camera> >( new osg::Camera ) ) : ( camera ) );
 

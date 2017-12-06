@@ -141,7 +141,7 @@ bool Mouse3DInput::nativeEventFilter( const QByteArray& eventType, void* message
 
 	return false;
 }
-
+#endif
 
 Mouse3DInput::Mouse3DInput( QWidget* widget ) :
 	QObject( widget )
@@ -155,7 +155,7 @@ Mouse3DInput::Mouse3DInput( QWidget* widget ) :
 #if QT_VERSION >= 0x050000
 	qApp->installNativeEventFilter( this );
 #else
-	qApp->setEventFilter( Mouse3DInput::RawInputEventFilter );
+    //qApp->setEventFilter( Mouse3DInput::RawInputEventFilter );
 #endif
 }
 

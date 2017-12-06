@@ -1,3 +1,5 @@
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include "Clustering/Figures/Sphere.h"
 
 #include <vector>
@@ -8,13 +10,11 @@
 #include <osg/Material>
 
 /* If VS2010 compiler is used , we need to define math.h constants*/
-#ifdef _MSC_VER
-#if (_MSC_VER == 1600)
-#define _USE_MATH_DEFINES
-#endif
-#endif
+//#ifdef _MSC_VER
+//#if (_MSC_VER == 1600)
+//#endif
+//#endif
 
-#include <math.h>
 
 Clustering::Sphere::Sphere( osg::Vec3d position, double radius, osg::Vec4d color )
 {

@@ -91,3 +91,6 @@
 [submodule "dependencies/osgQt"]
 	path = dependencies/osgQt
 	url = git@github.com:openscenegraph/osgQt.git
+[submodule "dependencies/osgoculusviewer"]
+	path = dependencies/osgoculusviewer
+	url = git@github.com:bjornblissing/osgoculusviewer.git
